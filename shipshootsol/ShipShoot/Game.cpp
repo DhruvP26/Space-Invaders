@@ -1,6 +1,7 @@
 #include "Game.h"
 #include "WindowUtils.h"
 #include "CommonStates.h"
+#include <random>
 
 using namespace std;
 using namespace DirectX;
@@ -8,6 +9,9 @@ using namespace DirectX::SimpleMath;
 
 MouseAndKeys Game::sMKIn;
 Gamepads Game::sGamepads;
+
+//random number engine
+default_random_engine randEngine;
 
 const RECTF missileSpin[]{
 	{ 0,  0, 53, 48},
@@ -72,34 +76,40 @@ void Game::Render(float dTime)
 	sMKIn.PostProcess();
 }
 
-void Bullet::Init(MyD3D& d3d)
+Bullet::Bullet(DirectX::SimpleMath::Vector2 pos, int direction)
+	:bullet(*d3d),
+	direction(direction)
 {
-	vector<RECTF> frames2(missileSpin, missileSpin + sizeof(missileSpin) / sizeof(missileSpin[0]));
-	ID3D11ShaderResourceView* p = d3d.GetCache().LoadTexture(&d3d.GetDevice(), "missile.dds", "missile", true, &frames2);
-
 	bullet.SetTex(*p);
 	bullet.GetAnim().Init(0, 3, 15, true);
 	bullet.GetAnim().Play(true);
 	bullet.SetScale(Vector2(0.5f, 0.5f));
 	bullet.origin = Vector2((missileSpin[0].right - missileSpin[0].left) / 2.f, (missileSpin[0].bottom - missileSpin[0].top) / 2.f);
-	active = false;
+	bullet.mPos = pos;
+}
+
+void Bullet::Init(MyD3D& d3d)
+{
+	vector<RECTF> frames2(missileSpin, missileSpin + sizeof(missileSpin) / sizeof(missileSpin[0]));
+	p = d3d.GetCache().LoadTexture(&d3d.GetDevice(), "missile.dds", "missile", true, &frames2);
+	Bullet::d3d = &d3d;
 }
 
 void Bullet::Render(SpriteBatch& batch)
 {
-	if (active)
-		bullet.Draw(batch);
+	bullet.Draw(batch);
 }
 
 void Bullet::Update(float dTime)
 {
-	if (active)
-	{
-		bullet.mPos.y -= MISSILE_SPEED * dTime;
-		if (bullet.mPos.y < 0)
-			active = false;
-		bullet.GetAnim().Update(dTime);
-	}
+	bullet.mPos.y += 300 * dTime * direction;
+	bullet.GetAnim().Update(dTime);
+	
+}
+
+bool Bullet::OutOfBounds()
+{
+	return bullet.mPos.y < 0;
 }
 
 
@@ -126,41 +136,78 @@ void Enemy::Update(float dTime)
 
 	//bullet.mPos.y -= MISSILE_SPEED * dTime;
 	sprite.mPos.x += xSpeed * dTime;
-	if ((xSpeed > 0 && sprite.mPos.x > sprite.GetScreenSize().x) || (xSpeed < 0 && sprite.mPos.x < 0))
-	{
-		xSpeed = -xSpeed;
-		sprite.mPos.y += 10;
-	}
+	
 
 	sprite.GetAnim().Update(dTime);
 	
 }
 
+void Enemy::MoveDown()
+{
+	sprite.mPos.y += 3;
+}
+
+bool Enemy::CheckSwitchDirection(const RECTF& playArea)
+{
+	if ((xSpeed > 0 && sprite.mPos.x > playArea.right) || (xSpeed < 0 && sprite.mPos.x < playArea.left))
+	{
+		xSpeed = -xSpeed;
+		return true;
+	}
+	return false;
+}
+
+
 PlayMode::PlayMode(MyD3D & d3d)
-	:mD3D(d3d), mPlayer(d3d), mThrust(d3d), mMissile(d3d)
+	:mD3D(d3d), mPlayer(d3d)
 {
 	InitBgnd();
 	InitPlayer();
-
-	for (float y = 50; y < 150; y += 25)
+	Bullet::Init(d3d);
+	for (float y = 10; y < 180; y += 20)
 	{
-		for (float x = 100; x < 300; x += 50)
+		for (float x = 100; x < 500; x += 50)
 		{
 			mEnemies.emplace_back(d3d);
 			mEnemies.back().Init(d3d, Vector2(x, y));
 		}
 	}
 	
+	mLivesTexture = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "ship.dds");
 }
 
-void PlayMode::UpdateMissile(float dTime)
+void PlayMode::UpdateBullets(float dTime)
 {
-	if (!mMissile.active && Game::sMKIn.IsPressed(VK_SPACE))
+	if (mRespawnTimer <= 0 && mPlayerBullets.size() < 3 && Game::sMKIn.IsPressed(VK_SPACE) && !mFireDown)
 	{
-		mMissile.active = true;
-		mMissile.bullet.mPos = Vector2(mPlayer.mPos.x + mPlayer.GetScreenSize().x / 2.f, mPlayer.mPos.y);
+		mPlayerBullets.emplace_back(Vector2(mPlayer.mPos.x + mPlayer.GetScreenSize().x / 2.f - 20, mPlayer.mPos.y), -1);
 	}
-	mMissile.Update(dTime);
+
+	mFireDown = Game::sMKIn.IsPressed(VK_SPACE);
+
+	for (int bulletI = mPlayerBullets.size() - 1; bulletI >= 0; --bulletI)
+	{
+		mPlayerBullets[bulletI].Update(dTime);
+		if (mPlayerBullets[bulletI].OutOfBounds())
+			mPlayerBullets.erase(begin(mPlayerBullets) + bulletI);
+	}
+
+	// enemy firing
+	mEnemyBulletTimer -= dTime;
+	if (mEnemyBulletTimer <= 0 && !mEnemies.empty())
+	{
+		uniform_int_distribution<int> range(0, mEnemies.size() - 1);
+		int chosenI = range(randEngine);
+		auto& enemySprite = mEnemies[chosenI].GetSprite();
+		mEnemyBullets.emplace_back(Vector2(enemySprite.mPos.x + enemySprite.GetScreenSize().x / 8.f, enemySprite.mPos.y), 1);
+		mEnemyBulletTimer = 60.f / mEnemies.size();
+	}
+	for (int bulletI = mEnemyBullets.size() - 1; bulletI >= 0; --bulletI)
+	{
+		mEnemyBullets[bulletI].Update(dTime);
+		if (mEnemyBullets[bulletI].OutOfBounds())
+			mEnemyBullets.erase(begin(mEnemyBullets) + bulletI);
+	}
 }
 
 
@@ -175,6 +222,9 @@ void PlayMode::UpdateBgnd(float dTime)
 
 void PlayMode::UpdateInput(float dTime)
 {
+	if (mRespawnTimer > 0)
+		return;
+
 	Vector2 mouse{ Game::sMKIn.GetMousePos(false) };
 	bool keypressed = Game::sMKIn.IsPressed(VK_UP) || Game::sMKIn.IsPressed(VK_DOWN) ||
 		Game::sMKIn.IsPressed(VK_RIGHT) || Game::sMKIn.IsPressed(VK_LEFT);
@@ -221,41 +271,124 @@ void PlayMode::UpdateInput(float dTime)
 	}
 }
 
-void PlayMode::UpdateThrust(float dTime)
+void PlayMode::UpdateCollisions()
 {
-	if (mThrusting)
+	//going through the list backwards so that items can be deleted without skipping items
+	for (int bulletI = mPlayerBullets.size() - 1; bulletI >= 0; --bulletI)
 	{
-		mThrust.mPos = mPlayer.mPos;
-		mThrust.mPos.x -= 25;
-		mThrust.mPos.y -= 12;
-		mThrust.SetScale(Vector2(1.5f, 1.5f));
-		mThrust.GetAnim().Update(dTime);
+		auto& bulletSprite = mPlayerBullets[bulletI].bullet;
+		auto bulletSize = bulletSprite.GetScreenSize();
+		float bulletWidth = bulletSize.x / 4;   // 4 frames of animation
+
+		for (int enemyI = mEnemies.size() - 1; enemyI >= 0; --enemyI)
+		{
+			auto& enemySprite = mEnemies[enemyI].GetSprite();
+			auto enemySize = enemySprite.GetScreenSize();
+			float enemyWidth = enemySize.x / 4;     // 4 frames of animation
+
+			if (
+				bulletSprite.mPos.x < enemySprite.mPos.x + enemyWidth &&
+				bulletSprite.mPos.x + bulletWidth > enemySprite.mPos.x &&
+				bulletSprite.mPos.y < enemySprite.mPos.y + enemySize.y &&
+				bulletSprite.mPos.y + bulletSize.y > enemySprite.mPos.y
+				) 
+			{
+				// Collision detected!
+				mPlayerBullets.erase(begin(mPlayerBullets) + bulletI);
+				mEnemies.erase(begin(mEnemies) + enemyI);
+				break;
+			}
+			
+		}
+	}
+
+	//check for enemy bullet collision with player 
+	if (mRespawnTimer <= 0)
+	{
+		auto playerSize = mPlayer.GetScreenSize();
+		for (int bulletI = mEnemyBullets.size() - 1; bulletI >= 0; --bulletI)
+		{
+			auto& bulletSprite = mEnemyBullets[bulletI].bullet;
+			auto bulletSize = bulletSprite.GetScreenSize();
+			float bulletWidth = bulletSize.x / 4;   // 4 frames of animation
+
+			if (
+				bulletSprite.mPos.x < mPlayer.mPos.x + playerSize.x &&
+				bulletSprite.mPos.x + bulletWidth > mPlayer.mPos.x &&
+				bulletSprite.mPos.y < mPlayer.mPos.y + playerSize.y &&
+				bulletSprite.mPos.y + bulletSize.y > mPlayer.mPos.y
+				)
+			{
+				// Collision detected!
+				mEnemyBullets.erase(begin(mEnemyBullets) + bulletI);
+				mLives--;
+				mRespawnTimer = 3;
+				break;
+			}
+		}
 	}
 }
 
+
 void PlayMode::Update(float dTime)
 {
+	mRespawnTimer -= dTime;
+
 	UpdateBgnd(dTime);
 
-	UpdateMissile(dTime);
+	UpdateBullets(dTime);
 
 	UpdateInput(dTime);
 
-	UpdateThrust(dTime);
+	UpdateEnemies(dTime);
+		
+	UpdateCollisions();
+}
 
+void PlayMode::UpdateEnemies(float dTime)
+{
 	for (auto& enemy : mEnemies)
 		enemy.Update(dTime);
+
+	for (auto& enemy : mEnemies)
+	{
+		if (enemy.CheckSwitchDirection(mPlayArea))
+		{
+			for (auto& enemy2 : mEnemies)
+			{
+				enemy2.MoveDown();
+			}
+			break;
+		}
+	}
+
+	
 }
 
 void PlayMode::Render(float dTime, DirectX::SpriteBatch & batch) {
 	for (auto& s : mBgnd)
 		s.Draw(batch);
-	if(mThrusting>GetClock())
-		mThrust.Draw(batch);
-	mMissile.Render(batch);
-	mPlayer.Draw(batch);
+	for (auto& bullet : mPlayerBullets)
+		bullet.Render(batch);
+	for (auto& bullet : mEnemyBullets)
+		bullet.Render(batch);
+
+	if (mRespawnTimer <= 0)
+		mPlayer.Draw(batch);
+
 	for (auto& enemy : mEnemies)
 		enemy.Render(batch);
+
+	//display lives
+	Sprite lifeSprite(mD3D);
+	for (int i = 0; i < mLives; ++i)
+	{
+		lifeSprite.SetTex(*mLivesTexture); 
+		lifeSprite.SetScale(Vector2(0.05f, 0.05f));
+		lifeSprite.mPos = Vector2(i * 20.f, 10.f);
+		lifeSprite.Draw(batch);
+
+	}
 }
 
 void PlayMode::InitBgnd()
@@ -292,25 +425,17 @@ void PlayMode::InitPlayer()
 	//load a orientate the ship
 	ID3D11ShaderResourceView *p = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "ship.dds");
 	mPlayer.SetTex(*p);
-	mPlayer.SetScale(Vector2(0.1f, 0.1f));
+	mPlayer.SetScale(Vector2(0.05f, 0.05f));
 	mPlayer.origin = mPlayer.GetTexData().dim / 2.f;
-	mPlayer.rotation = PI / 2.f;
+	//mPlayer.rotation = PI / 2.f;
 
 	//setup the play area
 	int w, h;
 	WinUtil::Get().GetClientExtents(w, h);
 	mPlayArea.left = mPlayer.GetScreenSize().x*0.6f;
-	mPlayArea.top = h * 0.75f;
+	mPlayArea.top = h * 0.9f;
 	mPlayArea.right = w - mPlayArea.left;
-	mPlayArea.bottom = h * 0.75f;
+	mPlayArea.bottom = h * 0.9f;
 	mPlayer.mPos = Vector2(mPlayArea.left + mPlayer.GetScreenSize().x / 2.f, (mPlayArea.bottom - mPlayArea.top) / 2.f);
 
-	vector<RECTF> frames(thrustAnim, thrustAnim + sizeof(thrustAnim) / sizeof(thrustAnim[0]));
-	p = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "thrust.dds", "thrust", true, &frames);
-	mThrust.SetTex(*p);
-	mThrust.GetAnim().Init(0, 3, 15, true);
-	mThrust.GetAnim().Play(true);
-	mThrust.rotation = PI / 2.f;
-
-	mMissile.Init(mD3D);
 }

@@ -12,18 +12,21 @@ Animated missile bullet
 Player can only fire one and has to wait for it to leave the 
 screen before firing again.
 */
-struct Bullet
+class Bullet
 {
-	Bullet(MyD3D& d3d)
-		:bullet(d3d)
-	{}
+public:
+	Bullet(DirectX::SimpleMath::Vector2 pos, int direction);
 	Sprite bullet;
-	bool active = false;
 
-	void Init(MyD3D& d3d);
+	static void Init(MyD3D& d3d);
+	static inline ID3D11ShaderResourceView* p = nullptr;
+	static inline MyD3D* d3d;
+
 	void Render(DirectX::SpriteBatch& batch);
 	void Update(float dTime);
-	const float MISSILE_SPEED = 300;
+	bool OutOfBounds();
+private:
+	int direction;
 };
 
 class Enemy
@@ -35,6 +38,9 @@ public:
 	void Init(MyD3D& d3d, DirectX::SimpleMath::Vector2 pos);
 	void Render(DirectX::SpriteBatch& batch);
 	void Update(float dTime);
+	void MoveDown();
+	bool CheckSwitchDirection(const RECTF& playArea);
+	Sprite GetSprite() { return sprite; }
 private:
 	Sprite sprite;
 	inline static int xSpeed = 20;
@@ -46,6 +52,7 @@ class PlayMode
 public:
 	PlayMode(MyD3D& d3d);
 	void Update(float dTime);
+	void UpdateEnemies(float dTime);
 	void Render(float dTime, DirectX::SpriteBatch& batch);
 private:
 	const float SCROLL_SPEED = 10.f;
@@ -58,26 +65,35 @@ private:
 	std::vector<Sprite> mBgnd; //parallax layers
 	Sprite mPlayer;		//jet
 	RECTF mPlayArea;	//don't go outside this	
-	Sprite mThrust;		//flames out the back
-	Bullet mMissile;	//weapon, only one at once
+	std::vector<Bullet> mPlayerBullets; 
+	std::vector<Bullet> mEnemyBullets;
 	std::vector<Enemy> mEnemies;
 
 	//once we start thrusting we have to keep doing it for 
 	//at least a fraction of a second or it looks whack
 	float mThrusting = 0; 
 
+
+	float mEnemyBulletTimer = 2;
+	int mLives = 3;
+	float mRespawnTimer = 0;
+
+	bool mFireDown = false;  // is the fire button currently being held down 
+	
+	ID3D11ShaderResourceView* mLivesTexture;
+
 	//setup once
 	void InitBgnd();
 	void InitPlayer();
 
 	//make it move, reset it once it leaves the screen, only one at once
-	void UpdateMissile(float dTime);
+	void UpdateBullets(float dTime);
 	//make it scroll parallax
 	void UpdateBgnd(float dTime);
 	//move the ship by keyboard, gamepad or mouse
 	void UpdateInput(float dTime);
-	//make the flames wobble when the ship moves
-	void UpdateThrust(float dTime);
+	//check for collision between bullets, and the player 
+	void UpdateCollisions();
 };
 
 
