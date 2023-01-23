@@ -54,6 +54,8 @@ public:
 	void Update(float dTime);
 	void UpdateEnemies(float dTime);
 	void Render(float dTime, DirectX::SpriteBatch& batch);
+	bool IsGameOver();
+
 private:
 	const float SCROLL_SPEED = 10.f;
 	static const int BGND_LAYERS = 8;
@@ -103,10 +105,10 @@ Basic wrapper for a game
 class Game
 {
 public:
-	enum class State { PLAY };
+	enum class State { TITLE, PLAY };
 	static MouseAndKeys sMKIn;
 	static Gamepads sGamepads;
-	State state = State::PLAY;
+	State state = State::TITLE;
 	Game(MyD3D& d3d);
 
 
@@ -117,7 +119,8 @@ private:
 	MyD3D& mD3D;
 	DirectX::SpriteBatch *mpSB = nullptr;
 	//not much of a game, but this is it
-	PlayMode mPMode;
+	PlayMode* mPMode;
+	Sprite mTitleSprite;
 };
 
 

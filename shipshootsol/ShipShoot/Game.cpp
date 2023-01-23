@@ -28,11 +28,15 @@ const RECTF thrustAnim[]{
 };
 
 Game::Game(MyD3D& d3d)
-	: mPMode(d3d), mD3D(d3d), mpSB(nullptr)
+	: mPMode(nullptr), mD3D(d3d), mpSB(nullptr), mTitleSprite(mD3D)
 {
 	sMKIn.Initialise(WinUtil::Get().GetMainWnd(), true, false);
 	sGamepads.Initialise();
 	mpSB = new SpriteBatch(&mD3D.GetDeviceCtx());
+	auto* titleTexture = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "title.dds");
+	mTitleSprite.SetTex(*titleTexture);
+	mTitleSprite.SetScale(Vector2(1, 1));
+	mTitleSprite.mPos = Vector2(0, 0);
 }
   
 
@@ -49,8 +53,22 @@ void Game::Update(float dTime)
 	sGamepads.Update();
 	switch (state)
 	{
+	case State::TITLE:
+		if (Game::sMKIn.IsPressed(VK_SPACE))
+		{
+			mPMode = new PlayMode(mD3D); 
+			state = State::PLAY;
+		}
+		break;
 	case State::PLAY:
-		mPMode.Update(dTime);
+		mPMode->Update(dTime);
+		if (mPMode->IsGameOver())
+		{
+			state = State::TITLE;
+			delete mPMode;
+			mPMode = nullptr;
+		}
+		break;
 	}
 }
 
@@ -65,8 +83,12 @@ void Game::Render(float dTime)
 
 	switch (state)
 	{
+	case State::TITLE:
+		mTitleSprite.Draw(*mpSB);
+		break;
 	case State::PLAY:
-		mPMode.Render(dTime, *mpSB);
+		mPMode->Render(dTime, *mpSB);
+		break;
 	}
 
 	mpSB->End();
@@ -387,8 +409,12 @@ void PlayMode::Render(float dTime, DirectX::SpriteBatch & batch) {
 		lifeSprite.SetScale(Vector2(0.05f, 0.05f));
 		lifeSprite.mPos = Vector2(i * 20.f, 10.f);
 		lifeSprite.Draw(batch);
-
 	}
+}
+
+bool PlayMode::IsGameOver()
+{
+	return mLives <= 0;
 }
 
 void PlayMode::InitBgnd()
