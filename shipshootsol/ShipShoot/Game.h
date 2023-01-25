@@ -58,7 +58,7 @@ public:
 
 private:
 	const float SCROLL_SPEED = 10.f;
-	static const int BGND_LAYERS = 8;
+	static const int BGND_LAYERS = 2;
 	const float SPEED = 250;
 	const float MOUSE_SPEED = 5000;
 	const float PAD_SPEED = 500;

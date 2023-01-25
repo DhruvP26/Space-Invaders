@@ -105,7 +105,7 @@ Bullet::Bullet(DirectX::SimpleMath::Vector2 pos, int direction)
 	bullet.SetTex(*p);
 	bullet.GetAnim().Init(0, 3, 15, true);
 	bullet.GetAnim().Play(true);
-	bullet.SetScale(Vector2(0.5f, 0.5f));
+	bullet.SetScale(Vector2(0.75f, 0.75f));
 	bullet.origin = Vector2((missileSpin[0].right - missileSpin[0].left) / 2.f, (missileSpin[0].bottom - missileSpin[0].top) / 2.f);
 	bullet.mPos = pos;
 }
@@ -143,7 +143,7 @@ void Enemy::Init(MyD3D& d3d, DirectX::SimpleMath::Vector2 pos)
 	sprite.SetTex(*p);
 	sprite.GetAnim().Init(0, 3, 15, true);
 	sprite.GetAnim().Play(true);
-	sprite.SetScale(Vector2(0.5f, 0.5f));
+	sprite.SetScale(Vector2(1.0f, 1.0f));
 	sprite.origin = Vector2((missileSpin[0].right - missileSpin[0].left) / 2.f, (missileSpin[0].bottom - missileSpin[0].top) / 2.f);
 	sprite.mPos = pos;
 }
@@ -166,7 +166,7 @@ void Enemy::Update(float dTime)
 
 void Enemy::MoveDown()
 {
-	sprite.mPos.y += 3;
+	sprite.mPos.y += 20;
 }
 
 bool Enemy::CheckSwitchDirection(const RECTF& playArea)
@@ -186,9 +186,9 @@ PlayMode::PlayMode(MyD3D & d3d)
 	InitBgnd();
 	InitPlayer();
 	Bullet::Init(d3d);
-	for (float y = 10; y < 180; y += 20)
+	for (float y = 10; y < 180; y += 30)
 	{
-		for (float x = 100; x < 500; x += 50)
+		for (float x = 100; x < 500; x += 70)
 		{
 			mEnemies.emplace_back(d3d);
 			mEnemies.back().Init(d3d, Vector2(x, y));
@@ -425,14 +425,8 @@ void PlayMode::InitBgnd()
 
 	//a neat way to package pairs of things (nicknames and filenames)
 	pair<string, string> files[BGND_LAYERS]{
-		{ "bgnd0","backgroundlayers/mountains01_007.dds" },
-		{ "bgnd1","backgroundlayers/mountains01_005.dds" },
-		{ "bgnd2","backgroundlayers/mountains01_004.dds" },
-		{ "bgnd3","backgroundlayers/mountains01_003.dds" },
-		{ "bgnd4","backgroundlayers/mountains01_002.dds" },
-		{ "bgnd5","backgroundlayers/mountains01_001.dds" },
-		{ "bgnd6","backgroundlayers/mountains01_000.dds" },
-		{ "bgnd7","backgroundlayers/mountains01_006.dds" }
+		{ "bgnd0","backgroundlayers/nebulawetstars.dds" },
+		{ "bgnd1","backgroundlayers/nebuladrystars.dds" },
 	};
 	int i = 0;
 	for (auto& f : files)
@@ -451,7 +445,7 @@ void PlayMode::InitPlayer()
 	//load a orientate the ship
 	ID3D11ShaderResourceView *p = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "ship.dds");
 	mPlayer.SetTex(*p);
-	mPlayer.SetScale(Vector2(0.05f, 0.05f));
+	mPlayer.SetScale(Vector2(0.1f, 0.1f));
 	mPlayer.origin = mPlayer.GetTexData().dim / 2.f;
 	//mPlayer.rotation = PI / 2.f;
 
