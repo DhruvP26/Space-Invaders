@@ -302,6 +302,8 @@ void PlayMode::UpdateCollisions()
 		auto bulletSize = bulletSprite.GetScreenSize();
 		float bulletWidth = bulletSize.x / 4;   // 4 frames of animation
 
+		bool collided = false;
+
 		for (int enemyI = mEnemies.size() - 1; enemyI >= 0; --enemyI)
 		{
 			auto& enemySprite = mEnemies[enemyI].GetSprite();
@@ -318,9 +320,33 @@ void PlayMode::UpdateCollisions()
 				// Collision detected!
 				mPlayerBullets.erase(begin(mPlayerBullets) + bulletI);
 				mEnemies.erase(begin(mEnemies) + enemyI);
+				collided = true;
 				break;
 			}
-			
+		}
+
+		if (!collided)
+		{
+			//Check for collisions between player and enemy bullets
+			for (int enemyBulletI = mEnemyBullets.size() - 1; enemyBulletI >= 0; --enemyBulletI)
+			{
+				auto& enemyBulletSprite = mEnemyBullets[enemyBulletI].bullet;
+				auto enemyBulletSize = enemyBulletSprite.GetScreenSize();
+				float enemyBulletWidth = enemyBulletSize.x / 4;   // 4 frames of animation
+				if (
+					bulletSprite.mPos.x < enemyBulletSprite.mPos.x + enemyBulletWidth &&
+					bulletSprite.mPos.x + bulletWidth > enemyBulletSprite.mPos.x &&
+					bulletSprite.mPos.y < enemyBulletSprite.mPos.y + enemyBulletSize.y &&
+					bulletSprite.mPos.y + bulletSize.y > enemyBulletSprite.mPos.y
+					)
+				{
+					// Collision detected!
+					mPlayerBullets.erase(begin(mPlayerBullets) + bulletI);
+					mEnemyBullets.erase(begin(mEnemyBullets) + enemyBulletI);
+					collided = true;
+					break;
+				}
+			}
 		}
 	}
 
