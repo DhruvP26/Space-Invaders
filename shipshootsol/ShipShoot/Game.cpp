@@ -3,6 +3,8 @@
 #include "CommonStates.h"
 #include <random>
 
+#include <SpriteFont.h>
+
 using namespace std;
 using namespace DirectX;
 using namespace DirectX::SimpleMath;
@@ -137,14 +139,11 @@ bool Bullet::OutOfBounds()
 
 void Enemy::Init(MyD3D& d3d, DirectX::SimpleMath::Vector2 pos)
 {
-	vector<RECTF> frames2(missileSpin, missileSpin + sizeof(missileSpin) / sizeof(missileSpin[0]));
-	ID3D11ShaderResourceView* p = d3d.GetCache().LoadTexture(&d3d.GetDevice(), "missile.dds", "missile", true, &frames2);
+	ID3D11ShaderResourceView* p = d3d.GetCache().LoadTexture(&d3d.GetDevice(), "shipYellow_manned.dds");
 
 	sprite.SetTex(*p);
-	sprite.GetAnim().Init(0, 3, 15, true);
-	sprite.GetAnim().Play(true);
-	sprite.SetScale(Vector2(1.0f, 1.0f));
-	sprite.origin = Vector2((missileSpin[0].right - missileSpin[0].left) / 2.f, (missileSpin[0].bottom - missileSpin[0].top) / 2.f);
+	sprite.SetScale(Vector2(0.5f, 0.5f));
+	//sprite.origin = Vector2((missileSpin[0].right - missileSpin[0].left) / 2.f, (missileSpin[0].bottom - missileSpin[0].top) / 2.f);
 	sprite.mPos = pos;
 }
 
@@ -308,7 +307,7 @@ void PlayMode::UpdateCollisions()
 		{
 			auto& enemySprite = mEnemies[enemyI].GetSprite();
 			auto enemySize = enemySprite.GetScreenSize();
-			float enemyWidth = enemySize.x / 4;     // 4 frames of animation
+			float enemyWidth = enemySize.x;   
 
 			if (
 				bulletSprite.mPos.x < enemySprite.mPos.x + enemyWidth &&
