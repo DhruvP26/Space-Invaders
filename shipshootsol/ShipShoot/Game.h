@@ -1,11 +1,13 @@
 #pragma once
 
 #include <vector>
-
+#include <memory>
 #include "Input.h"
 #include "D3D.h"
 #include "SpriteBatch.h"
 #include "Sprite.h"
+
+#include "SpriteFont.h"
 
 /*
 Animated missile bullet 
@@ -50,7 +52,7 @@ private:
 class PlayMode
 {
 public:
-	PlayMode(MyD3D& d3d);
+	PlayMode(MyD3D& d3d, std::shared_ptr<DirectX::DX11::SpriteFont> spriteFont);
 	void Update(float dTime);
 	void UpdateEnemies(float dTime);
 	void Render(float dTime, DirectX::SpriteBatch& batch);
@@ -64,6 +66,7 @@ private:
 	const float PAD_SPEED = 500;
 
 	MyD3D& mD3D;
+	std::shared_ptr<DirectX::DX11::SpriteFont> mSpriteFont;
 	std::vector<Sprite> mBgnd; //parallax layers
 	Sprite mPlayer;		//jet
 	RECTF mPlayArea;	//don't go outside this	
@@ -79,6 +82,7 @@ private:
 	float mEnemyBulletTimer = 2;
 	int mLives = 3;
 	float mRespawnTimer = 0;
+	int mScore = 0;
 
 	bool mFireDown = false;  // is the fire button currently being held down 
 	
@@ -121,6 +125,9 @@ private:
 	//not much of a game, but this is it
 	PlayMode* mPMode;
 	Sprite mTitleSprite;
+	std::shared_ptr<DirectX::DX11::SpriteFont> mSpriteFont;
+	std::vector<bool> mKeysPressed;
+	std::string mPlayerName;
 };
 
 

@@ -2,8 +2,10 @@
 #include "WindowUtils.h"
 #include "CommonStates.h"
 #include <random>
-
+#include <memory>
 #include <SpriteFont.h>
+#include <sstream>
+
 
 using namespace std;
 using namespace DirectX;
@@ -30,7 +32,8 @@ const RECTF thrustAnim[]{
 };
 
 Game::Game(MyD3D& d3d)
-	: mPMode(nullptr), mD3D(d3d), mpSB(nullptr), mTitleSprite(mD3D)
+	: mPMode(nullptr), mD3D(d3d), mpSB(nullptr), mTitleSprite(mD3D),
+	  mSpriteFont(std::make_shared<SpriteFont>(&d3d.GetDevice(), L"data\\fonts\\comic.spritefont"))
 {
 	sMKIn.Initialise(WinUtil::Get().GetMainWnd(), true, false);
 	sGamepads.Initialise();
@@ -39,6 +42,7 @@ Game::Game(MyD3D& d3d)
 	mTitleSprite.SetTex(*titleTexture);
 	mTitleSprite.SetScale(Vector2(1, 1));
 	mTitleSprite.mPos = Vector2(0, 0);
+	mKeysPressed.resize(VK_Z + 1);
 }
   
 
@@ -56,10 +60,22 @@ void Game::Update(float dTime)
 	switch (state)
 	{
 	case State::TITLE:
-		if (Game::sMKIn.IsPressed(VK_SPACE))
+		if (Game::sMKIn.IsPressed(VK_RETURN))
 		{
-			mPMode = new PlayMode(mD3D); 
+			mPMode = new PlayMode(mD3D, mSpriteFont); 
 			state = State::PLAY;
+		}
+		else
+		{
+			for (int key = VK_A; key <= VK_Z; ++key)
+			{
+				bool state = Game::sMKIn.IsPressed(key);
+				if (state && !mKeysPressed[key])
+				{
+					mPlayerName += (char)key;
+				}
+				mKeysPressed[key] = state;
+			}
 		}
 		break;
 	case State::PLAY:
@@ -87,6 +103,7 @@ void Game::Render(float dTime)
 	{
 	case State::TITLE:
 		mTitleSprite.Draw(*mpSB);
+		mSpriteFont->DrawString(mpSB, mPlayerName.c_str(), XMFLOAT2(0, 50));
 		break;
 	case State::PLAY:
 		mPMode->Render(dTime, *mpSB);
@@ -179,8 +196,8 @@ bool Enemy::CheckSwitchDirection(const RECTF& playArea)
 }
 
 
-PlayMode::PlayMode(MyD3D & d3d)
-	:mD3D(d3d), mPlayer(d3d)
+PlayMode::PlayMode(MyD3D & d3d, std::shared_ptr<SpriteFont> spriteFont)
+	:mD3D(d3d), mPlayer(d3d), mSpriteFont(spriteFont)
 {
 	InitBgnd();
 	InitPlayer();
@@ -319,6 +336,7 @@ void PlayMode::UpdateCollisions()
 				// Collision detected!
 				mPlayerBullets.erase(begin(mPlayerBullets) + bulletI);
 				mEnemies.erase(begin(mEnemies) + enemyI);
+				mScore += 10;
 				collided = true;
 				break;
 			}
@@ -435,6 +453,11 @@ void PlayMode::Render(float dTime, DirectX::SpriteBatch & batch) {
 		lifeSprite.mPos = Vector2(i * 20.f, 10.f);
 		lifeSprite.Draw(batch);
 	}
+
+	// display score
+	wstringstream ss;
+	ss << "Score: " << mScore;
+	mSpriteFont->DrawString(&batch, ss.str().c_str(), XMFLOAT2(0, 50));
 }
 
 bool PlayMode::IsGameOver()
@@ -481,6 +504,6 @@ void PlayMode::InitPlayer()
 	mPlayArea.top = h * 0.9f;
 	mPlayArea.right = w - mPlayArea.left;
 	mPlayArea.bottom = h * 0.9f;
-	mPlayer.mPos = Vector2(mPlayArea.left + mPlayer.GetScreenSize().x / 2.f, (mPlayArea.bottom - mPlayArea.top) / 2.f);
+	mPlayer.mPos = Vector2(w/2.0f, mPlayArea.bottom);
 
 }
