@@ -5,6 +5,7 @@
 #include <memory>
 #include <SpriteFont.h>
 #include <sstream>
+#include <Audio.h>
 
 
 using namespace std;
@@ -43,6 +44,17 @@ Game::Game(MyD3D& d3d)
 	mTitleSprite.SetScale(Vector2(1, 1));
 	mTitleSprite.mPos = Vector2(0, 0);
 	mKeysPressed.resize(VK_Z + 1);
+
+	// This is only needed in Windows desktop apps
+	auto hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+	//if (FAILED(hr))
+		// error
+
+	AUDIO_ENGINE_FLAGS eflags = AudioEngine_Default;
+#ifdef _DEBUG
+	eflags |= AudioEngine_Debug;
+#endif
+	mAudioEngine = std::make_shared<AudioEngine>(eflags);
 }
   
 
@@ -62,7 +74,7 @@ void Game::Update(float dTime)
 	case State::TITLE:
 		if (Game::sMKIn.IsPressed(VK_RETURN))
 		{
-			mPMode = new PlayMode(mD3D, mSpriteFont); 
+			mPMode = new PlayMode(mD3D, mSpriteFont, mAudioEngine); 
 			state = State::PLAY;
 		}
 		else
@@ -82,9 +94,15 @@ void Game::Update(float dTime)
 		mPMode->Update(dTime);
 		if (mPMode->IsGameOver())
 		{
-			state = State::TITLE;
+			state = State::GAMEOVER;
 			delete mPMode;
 			mPMode = nullptr;
+		}
+		break;
+	case State::GAMEOVER:
+		if (Game::sMKIn.IsPressed(VK_SPACE))
+		{
+			state = State::TITLE;
 		}
 		break;
 	}
@@ -103,10 +121,15 @@ void Game::Render(float dTime)
 	{
 	case State::TITLE:
 		mTitleSprite.Draw(*mpSB);
-		mSpriteFont->DrawString(mpSB, mPlayerName.c_str(), XMFLOAT2(0, 50));
+		mSpriteFont->DrawString(mpSB, "ENTER NAME", XMFLOAT2(260, 350));
+		mSpriteFont->DrawString(mpSB, mPlayerName.c_str(), XMFLOAT2(260, 400));
 		break;
 	case State::PLAY:
 		mPMode->Render(dTime, *mpSB);
+		break;
+	case State::GAMEOVER:
+		mTitleSprite.Draw(*mpSB);
+		mSpriteFont->DrawString(mpSB, "PRESS SPACE TO RETURN TO TITLE SCREEN", XMFLOAT2(120, 400));
 		break;
 	}
 
@@ -196,8 +219,8 @@ bool Enemy::CheckSwitchDirection(const RECTF& playArea)
 }
 
 
-PlayMode::PlayMode(MyD3D & d3d, std::shared_ptr<SpriteFont> spriteFont)
-	:mD3D(d3d), mPlayer(d3d), mSpriteFont(spriteFont)
+PlayMode::PlayMode(MyD3D & d3d, std::shared_ptr<SpriteFont> spriteFont, std::shared_ptr<AudioEngine> audioEngine)
+	:mD3D(d3d), mPlayer(d3d), mSpriteFont(spriteFont), mAudioEngine(audioEngine)
 {
 	InitBgnd();
 	InitPlayer();
@@ -462,7 +485,7 @@ void PlayMode::Render(float dTime, DirectX::SpriteBatch & batch) {
 
 bool PlayMode::IsGameOver()
 {
-	return mLives <= 0;
+	return mLives <= 0 || mEnemies.empty();
 }
 
 void PlayMode::InitBgnd()

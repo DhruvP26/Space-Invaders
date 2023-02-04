@@ -8,6 +8,7 @@
 #include "Sprite.h"
 
 #include "SpriteFont.h"
+#include <Audio.h>
 
 /*
 Animated missile bullet 
@@ -52,7 +53,7 @@ private:
 class PlayMode
 {
 public:
-	PlayMode(MyD3D& d3d, std::shared_ptr<DirectX::DX11::SpriteFont> spriteFont);
+	PlayMode(MyD3D& d3d, std::shared_ptr<DirectX::DX11::SpriteFont> spriteFont, std::shared_ptr<DirectX::AudioEngine> audioEngine);
 	void Update(float dTime);
 	void UpdateEnemies(float dTime);
 	void Render(float dTime, DirectX::SpriteBatch& batch);
@@ -67,6 +68,7 @@ private:
 
 	MyD3D& mD3D;
 	std::shared_ptr<DirectX::DX11::SpriteFont> mSpriteFont;
+	std::shared_ptr<DirectX::AudioEngine> mAudioEngine;
 	std::vector<Sprite> mBgnd; //parallax layers
 	Sprite mPlayer;		//jet
 	RECTF mPlayArea;	//don't go outside this	
@@ -109,7 +111,7 @@ Basic wrapper for a game
 class Game
 {
 public:
-	enum class State { TITLE, PLAY };
+	enum class State { TITLE, PLAY, GAMEOVER };
 	static MouseAndKeys sMKIn;
 	static Gamepads sGamepads;
 	State state = State::TITLE;
@@ -126,6 +128,7 @@ private:
 	PlayMode* mPMode;
 	Sprite mTitleSprite;
 	std::shared_ptr<DirectX::DX11::SpriteFont> mSpriteFont;
+	std::shared_ptr<DirectX::AudioEngine> mAudioEngine;
 	std::vector<bool> mKeysPressed;
 	std::string mPlayerName;
 };
