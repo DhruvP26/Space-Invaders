@@ -5,7 +5,7 @@
 #include <memory>
 #include <SpriteFont.h>
 #include <sstream>
-#include <Audio.h>
+#include "AudioMgrFMOD.h"
 
 
 using namespace std;
@@ -45,17 +45,12 @@ Game::Game(MyD3D& d3d)
 	mTitleSprite.mPos = Vector2(0, 0);
 	mKeysPressed.resize(VK_Z + 1);
 
-	// This is only needed in Windows desktop apps
-	auto hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-	//if (FAILED(hr))
-		// error
-
-	AUDIO_ENGINE_FLAGS eflags = AudioEngine_Default;
-#ifdef _DEBUG
-	eflags |= AudioEngine_Debug;
-#endif
-	mAudioEngine = std::make_shared<AudioEngine>(eflags);
-}
+	File::initialiseSystem();
+	mAudio = std::make_shared<AudioMgrFMOD>();
+	mAudio->Initialise();
+	//IAudioMgr* iAudioMgr = mAudio.get();
+	//iAudioMgr->GetSfxMgr()->Play("laser", false, false);
+}	//
   
 
 //any memory or resources we made need releasing at the end
@@ -69,12 +64,13 @@ void Game::Release()
 void Game::Update(float dTime)
 {
 	sGamepads.Update();
+	mAudio->Update();
 	switch (state)
 	{
 	case State::TITLE:
 		if (Game::sMKIn.IsPressed(VK_RETURN))
 		{
-			mPMode = new PlayMode(mD3D, mSpriteFont, mAudioEngine); 
+			mPMode = new PlayMode(mD3D, mSpriteFont, mAudio.get());
 			state = State::PLAY;
 		}
 		else
@@ -219,8 +215,8 @@ bool Enemy::CheckSwitchDirection(const RECTF& playArea)
 }
 
 
-PlayMode::PlayMode(MyD3D & d3d, std::shared_ptr<SpriteFont> spriteFont, std::shared_ptr<AudioEngine> audioEngine)
-	:mD3D(d3d), mPlayer(d3d), mSpriteFont(spriteFont), mAudioEngine(audioEngine)
+PlayMode::PlayMode(MyD3D & d3d, std::shared_ptr<SpriteFont> spriteFont, IAudioMgr* audio)
+	:mD3D(d3d), mPlayer(d3d), mSpriteFont(spriteFont), mAudio(audio)
 {
 	InitBgnd();
 	InitPlayer();
@@ -242,6 +238,7 @@ void PlayMode::UpdateBullets(float dTime)
 	if (mRespawnTimer <= 0 && mPlayerBullets.size() < 3 && Game::sMKIn.IsPressed(VK_SPACE) && !mFireDown)
 	{
 		mPlayerBullets.emplace_back(Vector2(mPlayer.mPos.x + mPlayer.GetScreenSize().x / 2.f - 20, mPlayer.mPos.y), -1);
+		mAudio->GetSfxMgr()->Play("laser", false, false);
 	}
 
 	mFireDown = Game::sMKIn.IsPressed(VK_SPACE);

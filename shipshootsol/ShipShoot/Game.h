@@ -8,7 +8,9 @@
 #include "Sprite.h"
 
 #include "SpriteFont.h"
-#include <Audio.h>
+
+class AudioMgrFMOD;
+class IAudioMgr;
 
 /*
 Animated missile bullet 
@@ -53,7 +55,7 @@ private:
 class PlayMode
 {
 public:
-	PlayMode(MyD3D& d3d, std::shared_ptr<DirectX::DX11::SpriteFont> spriteFont, std::shared_ptr<DirectX::AudioEngine> audioEngine);
+	PlayMode(MyD3D& d3d, std::shared_ptr<DirectX::DX11::SpriteFont> spriteFont, IAudioMgr* audio);
 	void Update(float dTime);
 	void UpdateEnemies(float dTime);
 	void Render(float dTime, DirectX::SpriteBatch& batch);
@@ -68,7 +70,7 @@ private:
 
 	MyD3D& mD3D;
 	std::shared_ptr<DirectX::DX11::SpriteFont> mSpriteFont;
-	std::shared_ptr<DirectX::AudioEngine> mAudioEngine;
+	IAudioMgr* mAudio;
 	std::vector<Sprite> mBgnd; //parallax layers
 	Sprite mPlayer;		//jet
 	RECTF mPlayArea;	//don't go outside this	
@@ -128,7 +130,7 @@ private:
 	PlayMode* mPMode;
 	Sprite mTitleSprite;
 	std::shared_ptr<DirectX::DX11::SpriteFont> mSpriteFont;
-	std::shared_ptr<DirectX::AudioEngine> mAudioEngine;
+	std::shared_ptr<AudioMgrFMOD> mAudio;
 	std::vector<bool> mKeysPressed;
 	std::string mPlayerName;
 };
