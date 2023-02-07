@@ -33,24 +33,30 @@ const RECTF thrustAnim[]{
 };
 
 Game::Game(MyD3D& d3d)
-	: mPMode(nullptr), mD3D(d3d), mpSB(nullptr), mTitleSprite(mD3D),
-	  mSpriteFont(std::make_shared<SpriteFont>(&d3d.GetDevice(), L"data\\fonts\\comic.spritefont"))
+	: mPMode(nullptr), mD3D(d3d), mpSB(nullptr), mTitleSprite(mD3D), mGameOverBackgroundSprite(mD3D),
+	mSpriteFont(std::make_shared<SpriteFont>(&d3d.GetDevice(), L"data\\fonts\\comic.spritefont"))
 {
 	sMKIn.Initialise(WinUtil::Get().GetMainWnd(), true, false);
 	sGamepads.Initialise();
 	mpSB = new SpriteBatch(&mD3D.GetDeviceCtx());
+
 	auto* titleTexture = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "title.dds");
 	mTitleSprite.SetTex(*titleTexture);
 	mTitleSprite.SetScale(Vector2(1, 1));
 	mTitleSprite.mPos = Vector2(0, 0);
+
+	auto* gameoverTexture = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "backgroundlayers/nebulawetstars.dds");
+	mGameOverBackgroundSprite.SetTex(*gameoverTexture);
+	mGameOverBackgroundSprite.SetScale(Vector2(1, 1));
+	mGameOverBackgroundSprite.mPos = Vector2(0, 0);
+
 	mKeysPressed.resize(VK_Z + 1);
 
 	File::initialiseSystem();
 	mAudio = std::make_shared<AudioMgrFMOD>();
 	mAudio->Initialise();
-	//IAudioMgr* iAudioMgr = mAudio.get();
-	//iAudioMgr->GetSfxMgr()->Play("laser", false, false);
-}	//
+}
+
   
 
 //any memory or resources we made need releasing at the end
@@ -124,8 +130,9 @@ void Game::Render(float dTime)
 		mPMode->Render(dTime, *mpSB);
 		break;
 	case State::GAMEOVER:
-		mTitleSprite.Draw(*mpSB);
-		mSpriteFont->DrawString(mpSB, "PRESS SPACE TO RETURN TO TITLE SCREEN", XMFLOAT2(120, 400));
+		mGameOverBackgroundSprite.Draw(*mpSB);
+		mSpriteFont->DrawString(mpSB, "GAME OVER", XMFLOAT2(260, 300));
+		mSpriteFont->DrawString(mpSB, "PRESS SPACE TO RETURN TO TITLE SCREEN", XMFLOAT2(120, 500));
 		break;
 	}
 
@@ -190,13 +197,7 @@ void Enemy::Render(SpriteBatch& batch)
 
 void Enemy::Update(float dTime)
 {
-
-	//bullet.mPos.y -= MISSILE_SPEED * dTime;
-	sprite.mPos.x += xSpeed * dTime;
-	
-
-	sprite.GetAnim().Update(dTime);
-	
+	sprite.mPos.x += sharedXSpeed * dTime;
 }
 
 void Enemy::MoveDown()
@@ -206,9 +207,9 @@ void Enemy::MoveDown()
 
 bool Enemy::CheckSwitchDirection(const RECTF& playArea)
 {
-	if ((xSpeed > 0 && sprite.mPos.x > playArea.right) || (xSpeed < 0 && sprite.mPos.x < playArea.left))
+	if ((sharedXSpeed > 0 && sprite.mPos.x > playArea.right) || (sharedXSpeed < 0 && sprite.mPos.x < playArea.left))
 	{
-		xSpeed = -xSpeed;
+		sharedXSpeed = -sharedXSpeed;
 		return true;
 	}
 	return false;
@@ -221,16 +222,24 @@ PlayMode::PlayMode(MyD3D & d3d, std::shared_ptr<SpriteFont> spriteFont, IAudioMg
 	InitBgnd();
 	InitPlayer();
 	Bullet::Init(d3d);
-	for (float y = 10; y < 180; y += 30)
+	for (float y = 50; y < 250; y += 30)
 	{
 		for (float x = 100; x < 500; x += 70)
 		{
-			mEnemies.emplace_back(d3d);
-			mEnemies.back().Init(d3d, Vector2(x, y));
+			mEnemies.push_back(new Enemy(d3d));
+			mEnemies.back()->Init(d3d, Vector2(x, y));
 		}
 	}
 	
 	mLivesTexture = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "ship.dds");
+
+	//start music 
+	mAudio->GetSongMgr()->Play("spacejam", true, false, nullptr, 0.2F);
+}
+
+PlayMode::~PlayMode()
+{
+	mAudio->GetSongMgr()->Stop();
 }
 
 void PlayMode::UpdateBullets(float dTime)
@@ -256,7 +265,7 @@ void PlayMode::UpdateBullets(float dTime)
 	{
 		uniform_int_distribution<int> range(0, mEnemies.size() - 1);
 		int chosenI = range(randEngine);
-		auto& enemySprite = mEnemies[chosenI].GetSprite();
+		auto& enemySprite = mEnemies[chosenI]->GetSprite();
 		mEnemyBullets.emplace_back(Vector2(enemySprite.mPos.x + enemySprite.GetScreenSize().x / 8.f, enemySprite.mPos.y), 1);
 		mEnemyBulletTimer = 60.f / mEnemies.size();
 	}
@@ -342,7 +351,7 @@ void PlayMode::UpdateCollisions()
 
 		for (int enemyI = mEnemies.size() - 1; enemyI >= 0; --enemyI)
 		{
-			auto& enemySprite = mEnemies[enemyI].GetSprite();
+			auto& enemySprite = mEnemies[enemyI]->GetSprite();
 			auto enemySize = enemySprite.GetScreenSize();
 			float enemyWidth = enemySize.x;   
 
@@ -355,6 +364,7 @@ void PlayMode::UpdateCollisions()
 			{
 				// Collision detected!
 				mPlayerBullets.erase(begin(mPlayerBullets) + bulletI);
+				delete mEnemies[enemyI];
 				mEnemies.erase(begin(mEnemies) + enemyI);
 				mScore += 10;
 				collided = true;
@@ -432,16 +442,25 @@ void PlayMode::Update(float dTime)
 
 void PlayMode::UpdateEnemies(float dTime)
 {
-	for (auto& enemy : mEnemies)
-		enemy.Update(dTime);
-
-	for (auto& enemy : mEnemies)
+	// create a boss enemy every so often 
+	mBossTimer -= dTime;
+	if (mBossTimer <= 0)
 	{
-		if (enemy.CheckSwitchDirection(mPlayArea))
+		mEnemies.push_back(new BossEnemy(mD3D));
+		mEnemies.back()->Init(mD3D, Vector2(0, 20));
+		mBossTimer = 10;
+	}
+
+	for (auto enemy : mEnemies)
+		enemy->Update(dTime);
+
+	for (auto enemy : mEnemies)
+	{
+		if (enemy->CheckSwitchDirection(mPlayArea))
 		{
-			for (auto& enemy2 : mEnemies)
+			for (auto enemy2 : mEnemies)
 			{
-				enemy2.MoveDown();
+				enemy2->MoveDown();
 			}
 			break;
 		}
@@ -462,7 +481,7 @@ void PlayMode::Render(float dTime, DirectX::SpriteBatch & batch) {
 		mPlayer.Draw(batch);
 
 	for (auto& enemy : mEnemies)
-		enemy.Render(batch);
+		enemy->Render(batch);
 
 	//display lives
 	Sprite lifeSprite(mD3D);
@@ -526,4 +545,19 @@ void PlayMode::InitPlayer()
 	mPlayArea.bottom = h * 0.9f;
 	mPlayer.mPos = Vector2(w/2.0f, mPlayArea.bottom);
 
+}
+
+void BossEnemy::Update(float dTime)
+{
+	sprite.mPos.x += xSpeed * dTime;
+}
+
+void BossEnemy::MoveDown()
+{
+	//do nothing - boss does not move down 
+}
+
+bool BossEnemy::CheckSwitchDirection(const RECTF& playArea)
+{
+	return false;
 }

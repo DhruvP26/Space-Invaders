@@ -42,13 +42,27 @@ public:
 	{}
 	void Init(MyD3D& d3d, DirectX::SimpleMath::Vector2 pos);
 	void Render(DirectX::SpriteBatch& batch);
-	void Update(float dTime);
-	void MoveDown();
-	bool CheckSwitchDirection(const RECTF& playArea);
+	virtual void Update(float dTime);
+	virtual void MoveDown();
+	virtual bool CheckSwitchDirection(const RECTF& playArea);
 	Sprite GetSprite() { return sprite; }
-private:
+protected:				  // variables can be accessed by derived clases 
 	Sprite sprite;
-	inline static int xSpeed = 20;
+private:
+	inline static int sharedXSpeed = 20;
+};
+
+class BossEnemy : public Enemy
+{
+public:
+	BossEnemy(MyD3D& d3d):
+		Enemy(d3d)
+	{}
+	virtual void Update(float dTime);
+	virtual void MoveDown();
+	virtual bool CheckSwitchDirection(const RECTF& playArea);
+private:
+	int xSpeed = 30;
 };
 
 //horizontal scrolling with player controlled ship
@@ -56,6 +70,7 @@ class PlayMode
 {
 public:
 	PlayMode(MyD3D& d3d, std::shared_ptr<DirectX::DX11::SpriteFont> spriteFont, IAudioMgr* audio);
+	~PlayMode();
 	void Update(float dTime);
 	void UpdateEnemies(float dTime);
 	void Render(float dTime, DirectX::SpriteBatch& batch);
@@ -76,7 +91,7 @@ private:
 	RECTF mPlayArea;	//don't go outside this	
 	std::vector<Bullet> mPlayerBullets; 
 	std::vector<Bullet> mEnemyBullets;
-	std::vector<Enemy> mEnemies;
+	std::vector<Enemy*> mEnemies;
 
 	//once we start thrusting we have to keep doing it for 
 	//at least a fraction of a second or it looks whack
@@ -87,6 +102,8 @@ private:
 	int mLives = 3;
 	float mRespawnTimer = 0;
 	int mScore = 0;
+
+	float mBossTimer = 5;
 
 	bool mFireDown = false;  // is the fire button currently being held down 
 	
@@ -119,7 +136,6 @@ public:
 	State state = State::TITLE;
 	Game(MyD3D& d3d);
 
-
 	void Release();
 	void Update(float dTime);
 	void Render(float dTime);
@@ -129,6 +145,7 @@ private:
 	//not much of a game, but this is it
 	PlayMode* mPMode;
 	Sprite mTitleSprite;
+	Sprite mGameOverBackgroundSprite;
 	std::shared_ptr<DirectX::DX11::SpriteFont> mSpriteFont;
 	std::shared_ptr<AudioMgrFMOD> mAudio;
 	std::vector<bool> mKeysPressed;
