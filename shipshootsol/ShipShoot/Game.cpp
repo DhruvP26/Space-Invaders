@@ -152,6 +152,7 @@ Bullet::Bullet(DirectX::SimpleMath::Vector2 pos, int direction)
 	bullet.GetAnim().Play(true);
 	bullet.SetScale(Vector2(0.75f, 0.75f));
 	bullet.origin = Vector2((missileSpin[0].right - missileSpin[0].left) / 2.f, (missileSpin[0].bottom - missileSpin[0].top) / 2.f);
+	bullet.rotation = 180.55;
 	bullet.mPos = pos;
 }
 
@@ -451,8 +452,14 @@ void PlayMode::UpdateEnemies(float dTime)
 		mBossTimer = 10;
 	}
 
-	for (auto enemy : mEnemies)
-		enemy->Update(dTime);
+	for (int enemyI = mEnemies.size() - 1; enemyI >= 0; --enemyI)
+	{
+		mEnemies[enemyI]->Update(dTime);
+		if (mEnemies[enemyI]->ShouldDestroy())
+		{
+			mEnemies.erase(begin(mEnemies) + enemyI);
+		}
+	}
 
 	for (auto enemy : mEnemies)
 	{
@@ -560,4 +567,11 @@ void BossEnemy::MoveDown()
 bool BossEnemy::CheckSwitchDirection(const RECTF& playArea)
 {
 	return false;
+}
+
+bool BossEnemy::ShouldDestroy()
+{
+	int w, h;
+	WinUtil::Get().GetClientExtents(w, h);
+	return sprite.mPos.x > w; 
 }

@@ -45,6 +45,7 @@ public:
 	virtual void Update(float dTime);
 	virtual void MoveDown();
 	virtual bool CheckSwitchDirection(const RECTF& playArea);
+	virtual bool ShouldDestroy() { return false; }
 	Sprite GetSprite() { return sprite; }
 protected:				  // variables can be accessed by derived clases 
 	Sprite sprite;
@@ -61,6 +62,7 @@ public:
 	virtual void Update(float dTime);
 	virtual void MoveDown();
 	virtual bool CheckSwitchDirection(const RECTF& playArea);
+	virtual bool ShouldDestroy();
 private:
 	int xSpeed = 30;
 };
