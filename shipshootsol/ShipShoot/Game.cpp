@@ -232,6 +232,8 @@ PlayMode::PlayMode(MyD3D & d3d, std::shared_ptr<SpriteFont> spriteFont, IAudioMg
 		}
 	}
 	
+	mShields.emplace_back(d3d, XMFLOAT2(400, 500));
+
 	mLivesTexture = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "ship.dds");
 
 	//start music 
@@ -423,6 +425,18 @@ void PlayMode::UpdateCollisions()
 			}
 		}
 	}
+
+	//check collisions between bullets and shield
+	for (int shieldI = mShields.size() - 1; shieldI >= 0; --shieldI)
+	{
+		for (int bulletI = mEnemyBullets.size() - 1; bulletI >= 0; --bulletI)
+		{
+			if (mShields[shieldI].CheckCollision(mEnemyBullets[bulletI]))
+			{
+				mEnemyBullets.erase(begin(mEnemyBullets) + bulletI);
+			}
+		}
+	}
 }
 
 
@@ -489,6 +503,9 @@ void PlayMode::Render(float dTime, DirectX::SpriteBatch & batch) {
 
 	for (auto& enemy : mEnemies)
 		enemy->Render(batch);
+
+	for (auto& shield : mShields)
+		shield.Render(batch);
 
 	//display lives
 	Sprite lifeSprite(mD3D);
@@ -574,4 +591,60 @@ bool BossEnemy::ShouldDestroy()
 	int w, h;
 	WinUtil::Get().GetClientExtents(w, h);
 	return sprite.mPos.x > w; 
+}
+
+Shield::Shield(MyD3D& d3d, DirectX::SimpleMath::Vector2 pos)
+{
+	ID3D11ShaderResourceView* p = d3d.GetCache().LoadTexture(&d3d.GetDevice(), "shipYellow_manned.dds");
+
+	for (int y = pos.y - 30; y < pos.y + 30; y += 15)
+	{
+		for (int x = pos.x - 30; x < pos.x + 30; x += 15)
+		{
+			pieceSprites.emplace_back(d3d);
+			pieceSprites.back().SetTex(*p);
+			pieceSprites.back().SetScale(Vector2(0.1f, 0.1f));
+			pieceSprites.back().mPos = XMFLOAT2(x, y);
+		}
+	}
+}
+
+void Shield::Render(DirectX::SpriteBatch& batch)
+{
+	for (auto& sprite : pieceSprites)
+	{
+		sprite.Draw(batch);
+	}
+}
+
+bool Shield::CheckCollision(Bullet& bullet)
+{
+	if (pieceSprites.empty())
+	{
+		return false;
+	}
+
+	auto& bulletSprite = bullet.bullet;
+	auto bulletSize = bulletSprite.GetScreenSize();
+	float bulletWidth = bulletSize.x / 4;   // 4 frames of animation
+
+	for (int pieceI = pieceSprites.size() - 1; pieceI >= 0; --pieceI)
+	{
+		auto& pieceSprite = pieceSprites[pieceI];
+		auto pieceSize = pieceSprite.GetScreenSize();
+
+		if (
+			bulletSprite.mPos.x < pieceSprite.mPos.x + pieceSize.x &&
+			bulletSprite.mPos.x + bulletWidth > pieceSprite.mPos.x &&
+			bulletSprite.mPos.y < pieceSprite.mPos.y + pieceSize.y &&
+			bulletSprite.mPos.y + bulletSize.y > pieceSprite.mPos.y
+			)
+		{
+			// Collision detected!
+			pieceSprites.erase(begin(pieceSprites) + pieceI);
+			return true;
+		}
+	}
+
+	return false;
 }

@@ -67,6 +67,18 @@ private:
 	int xSpeed = 30;
 };
 
+class Shield
+{
+public:
+	Shield(MyD3D& d3d, DirectX::SimpleMath::Vector2 pos);
+	void Render(DirectX::SpriteBatch& batch);
+	bool CheckCollision(Bullet& bullet);
+	virtual bool ShouldDestroy() { return false; }
+	//Sprite GetSprite() { return sprite; }
+private:				
+	std::vector<Sprite> pieceSprites;
+};
+
 //horizontal scrolling with player controlled ship
 class PlayMode
 {
@@ -94,6 +106,7 @@ private:
 	std::vector<Bullet> mPlayerBullets; 
 	std::vector<Bullet> mEnemyBullets;
 	std::vector<Enemy*> mEnemies;
+	std::vector<Shield> mShields;
 
 	//once we start thrusting we have to keep doing it for 
 	//at least a fraction of a second or it looks whack
