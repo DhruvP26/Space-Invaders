@@ -46,6 +46,7 @@ public:
 	virtual void MoveDown();
 	virtual bool CheckSwitchDirection(const RECTF& playArea);
 	virtual bool ShouldDestroy() { return false; }
+	virtual int GetScore() { return 10; }
 	Sprite GetSprite() { return sprite; }
 protected:				  // variables can be accessed by derived clases 
 	Sprite sprite;
@@ -63,6 +64,7 @@ public:
 	virtual void MoveDown();
 	virtual bool CheckSwitchDirection(const RECTF& playArea);
 	virtual bool ShouldDestroy();
+	virtual int GetScore() { return 100; }
 private:
 	int xSpeed = 30;
 };
@@ -127,6 +129,8 @@ private:
 	//setup once
 	void InitBgnd();
 	void InitPlayer();
+	void InitEnemies();
+	void InitShields();
 
 	//make it move, reset it once it leaves the screen, only one at once
 	void UpdateBullets(float dTime);

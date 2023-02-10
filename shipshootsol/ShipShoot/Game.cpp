@@ -152,7 +152,8 @@ Bullet::Bullet(DirectX::SimpleMath::Vector2 pos, int direction)
 	bullet.GetAnim().Play(true);
 	bullet.SetScale(Vector2(0.75f, 0.75f));
 	bullet.origin = Vector2((missileSpin[0].right - missileSpin[0].left) / 2.f, (missileSpin[0].bottom - missileSpin[0].top) / 2.f);
-	bullet.rotation = 180.55;
+	const float pi = 3.1415927f;
+	bullet.rotation = direction * pi / 2.0f;
 	bullet.mPos = pos;
 }
 
@@ -223,21 +224,33 @@ PlayMode::PlayMode(MyD3D & d3d, std::shared_ptr<SpriteFont> spriteFont, IAudioMg
 	InitBgnd();
 	InitPlayer();
 	Bullet::Init(d3d);
-	for (float y = 50; y < 250; y += 30)
-	{
-		for (float x = 100; x < 500; x += 70)
-		{
-			mEnemies.push_back(new Enemy(d3d));
-			mEnemies.back()->Init(d3d, Vector2(x, y));
-		}
-	}
-	
-	mShields.emplace_back(d3d, XMFLOAT2(400, 500));
+	InitEnemies();
+	InitShields();
 
 	mLivesTexture = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "ship.dds");
 
 	//start music 
 	mAudio->GetSongMgr()->Play("spacejam", true, false, nullptr, 0.2F);
+}
+
+void PlayMode::InitEnemies()
+{
+	for (float y = 50; y < 250; y += 30)
+	{
+		for (float x = 100; x < 500; x += 70)
+		{
+			mEnemies.push_back(new Enemy(mD3D));
+			mEnemies.back()->Init(mD3D, Vector2(x, y));
+		}
+	}
+}
+
+void PlayMode::InitShields()
+{
+	for (float x = 100; x < 600; x += 120)
+	{
+		mShields.emplace_back(mD3D, XMFLOAT2(x, 500));
+	}
 }
 
 PlayMode::~PlayMode()
@@ -348,7 +361,8 @@ void PlayMode::UpdateCollisions()
 	{
 		auto& bulletSprite = mPlayerBullets[bulletI].bullet;
 		auto bulletSize = bulletSprite.GetScreenSize();
-		float bulletWidth = bulletSize.x / 4;   // 4 frames of animation
+		float bulletWidth = bulletSize.y;  // sprite is rotated 90 degrees so width on screen is actually the height 
+		float bulletHeight = bulletSize.x / 4;   //4 frame animation 
 
 		bool collided = false;
 
@@ -362,14 +376,14 @@ void PlayMode::UpdateCollisions()
 				bulletSprite.mPos.x < enemySprite.mPos.x + enemyWidth &&
 				bulletSprite.mPos.x + bulletWidth > enemySprite.mPos.x &&
 				bulletSprite.mPos.y < enemySprite.mPos.y + enemySize.y &&
-				bulletSprite.mPos.y + bulletSize.y > enemySprite.mPos.y
-				) 
+				bulletSprite.mPos.y + bulletHeight > enemySprite.mPos.y
+				)
 			{
 				// Collision detected!
+				mScore += mEnemies[enemyI]->GetScore();
 				mPlayerBullets.erase(begin(mPlayerBullets) + bulletI);
 				delete mEnemies[enemyI];
 				mEnemies.erase(begin(mEnemies) + enemyI);
-				mScore += 10;
 				collided = true;
 				break;
 			}
@@ -382,12 +396,14 @@ void PlayMode::UpdateCollisions()
 			{
 				auto& enemyBulletSprite = mEnemyBullets[enemyBulletI].bullet;
 				auto enemyBulletSize = enemyBulletSprite.GetScreenSize();
-				float enemyBulletWidth = enemyBulletSize.x / 4;   // 4 frames of animation
+				float enemyBulletWidth = enemyBulletSize.y;
+				float enemyBulletHeight = enemyBulletSize.x / 4; 
+
 				if (
 					bulletSprite.mPos.x < enemyBulletSprite.mPos.x + enemyBulletWidth &&
 					bulletSprite.mPos.x + bulletWidth > enemyBulletSprite.mPos.x &&
-					bulletSprite.mPos.y < enemyBulletSprite.mPos.y + enemyBulletSize.y &&
-					bulletSprite.mPos.y + bulletSize.y > enemyBulletSprite.mPos.y
+					bulletSprite.mPos.y < enemyBulletSprite.mPos.y + enemyBulletHeight &&
+					bulletSprite.mPos.y + bulletHeight > enemyBulletSprite.mPos.y
 					)
 				{
 					// Collision detected!
@@ -408,13 +424,14 @@ void PlayMode::UpdateCollisions()
 		{
 			auto& bulletSprite = mEnemyBullets[bulletI].bullet;
 			auto bulletSize = bulletSprite.GetScreenSize();
-			float bulletWidth = bulletSize.x / 4;   // 4 frames of animation
+			float bulletWidth = bulletSize.y;  
+			float bulletHeight = bulletSize.x / 4; 
 
 			if (
 				bulletSprite.mPos.x < mPlayer.mPos.x + playerSize.x &&
 				bulletSprite.mPos.x + bulletWidth > mPlayer.mPos.x &&
 				bulletSprite.mPos.y < mPlayer.mPos.y + playerSize.y &&
-				bulletSprite.mPos.y + bulletSize.y > mPlayer.mPos.y
+				bulletSprite.mPos.y + bulletHeight > mPlayer.mPos.y
 				)
 			{
 				// Collision detected!
@@ -434,6 +451,13 @@ void PlayMode::UpdateCollisions()
 			if (mShields[shieldI].CheckCollision(mEnemyBullets[bulletI]))
 			{
 				mEnemyBullets.erase(begin(mEnemyBullets) + bulletI);
+			}
+		}
+		for (int bulletI = mPlayerBullets.size() - 1; bulletI >= 0; --bulletI)
+		{
+			if (mShields[shieldI].CheckCollision(mPlayerBullets[bulletI]))
+			{
+				mPlayerBullets.erase(begin(mPlayerBullets) + bulletI);
 			}
 		}
 	}
@@ -595,15 +619,18 @@ bool BossEnemy::ShouldDestroy()
 
 Shield::Shield(MyD3D& d3d, DirectX::SimpleMath::Vector2 pos)
 {
-	ID3D11ShaderResourceView* p = d3d.GetCache().LoadTexture(&d3d.GetDevice(), "shipYellow_manned.dds");
+	ID3D11ShaderResourceView* p = d3d.GetCache().LoadTexture(&d3d.GetDevice(), "shield.dds");
 
-	for (int y = pos.y - 30; y < pos.y + 30; y += 15)
+	const int range = 30;
+	const int gap = 15;
+
+	for (int y = pos.y - range; y <= pos.y + range; y += gap)
 	{
-		for (int x = pos.x - 30; x < pos.x + 30; x += 15)
+		for (int x = pos.x - range; x <= pos.x + range; x += gap)
 		{
 			pieceSprites.emplace_back(d3d);
 			pieceSprites.back().SetTex(*p);
-			pieceSprites.back().SetScale(Vector2(0.1f, 0.1f));
+			pieceSprites.back().SetScale(Vector2(0.5f, 0.5f));
 			pieceSprites.back().mPos = XMFLOAT2(x, y);
 		}
 	}
@@ -626,7 +653,8 @@ bool Shield::CheckCollision(Bullet& bullet)
 
 	auto& bulletSprite = bullet.bullet;
 	auto bulletSize = bulletSprite.GetScreenSize();
-	float bulletWidth = bulletSize.x / 4;   // 4 frames of animation
+	float bulletWidth = bulletSize.y;   // bullet sprite is rotated 90 degrees 
+	float bulletHeight = bulletSize.x / 4;   //4 frame animation 
 
 	for (int pieceI = pieceSprites.size() - 1; pieceI >= 0; --pieceI)
 	{
@@ -637,7 +665,7 @@ bool Shield::CheckCollision(Bullet& bullet)
 			bulletSprite.mPos.x < pieceSprite.mPos.x + pieceSize.x &&
 			bulletSprite.mPos.x + bulletWidth > pieceSprite.mPos.x &&
 			bulletSprite.mPos.y < pieceSprite.mPos.y + pieceSize.y &&
-			bulletSprite.mPos.y + bulletSize.y > pieceSprite.mPos.y
+			bulletSprite.mPos.y + bulletHeight > pieceSprite.mPos.y
 			)
 		{
 			// Collision detected!
