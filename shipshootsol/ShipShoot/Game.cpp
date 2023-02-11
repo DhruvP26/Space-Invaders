@@ -181,12 +181,10 @@ bool Bullet::OutOfBounds()
 	return bullet.mPos.y < 0;
 }
 
-
-void Enemy::Init(MyD3D& d3d, DirectX::SimpleMath::Vector2 pos)
+Enemy::Enemy(MyD3D& d3d, ID3D11ShaderResourceView* texture, DirectX::SimpleMath::Vector2 pos):
+	sprite(d3d)
 {
-	ID3D11ShaderResourceView* p = d3d.GetCache().LoadTexture(&d3d.GetDevice(), "shipYellow_manned.dds");
-
-	sprite.SetTex(*p);
+	sprite.SetTex(*texture);
 	sprite.SetScale(Vector2(0.5f, 0.5f));
 	//sprite.origin = Vector2((missileSpin[0].right - missileSpin[0].left) / 2.f, (missileSpin[0].bottom - missileSpin[0].top) / 2.f);
 	sprite.mPos = pos;
@@ -235,12 +233,12 @@ PlayMode::PlayMode(MyD3D & d3d, std::shared_ptr<SpriteFont> spriteFont, IAudioMg
 
 void PlayMode::InitEnemies()
 {
+	ID3D11ShaderResourceView* texture = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "shipYellow_manned.dds");
 	for (float y = 50; y < 250; y += 30)
 	{
 		for (float x = 100; x < 500; x += 70)
 		{
-			mEnemies.push_back(new Enemy(mD3D));
-			mEnemies.back()->Init(mD3D, Vector2(x, y));
+			mEnemies.push_back(new Enemy(mD3D, texture, Vector2(x,y)));
 		}
 	}
 }
@@ -485,8 +483,8 @@ void PlayMode::UpdateEnemies(float dTime)
 	mBossTimer -= dTime;
 	if (mBossTimer <= 0)
 	{
-		mEnemies.push_back(new BossEnemy(mD3D));
-		mEnemies.back()->Init(mD3D, Vector2(0, 20));
+		ID3D11ShaderResourceView* texture = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "shipBeige_manned.dds");
+		mEnemies.push_back(new BossEnemy(mD3D, texture, Vector2 (0,20)));
 		mBossTimer = 10;
 	}
 

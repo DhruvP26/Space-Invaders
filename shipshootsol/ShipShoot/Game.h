@@ -37,10 +37,7 @@ private:
 class Enemy
 {
 public:
-	Enemy(MyD3D& d3d) 
-		:sprite(d3d)
-	{}
-	void Init(MyD3D& d3d, DirectX::SimpleMath::Vector2 pos);
+	Enemy(MyD3D& d3d, ID3D11ShaderResourceView* texture, DirectX::SimpleMath::Vector2 pos);
 	void Render(DirectX::SpriteBatch& batch);
 	virtual void Update(float dTime);
 	virtual void MoveDown();
@@ -57,8 +54,8 @@ private:
 class BossEnemy : public Enemy
 {
 public:
-	BossEnemy(MyD3D& d3d):
-		Enemy(d3d)
+	BossEnemy(MyD3D& d3d, ID3D11ShaderResourceView* texture, DirectX::SimpleMath::Vector2 pos):
+		Enemy(d3d, texture, pos)
 	{}
 	virtual void Update(float dTime);
 	virtual void MoveDown();
@@ -66,7 +63,7 @@ public:
 	virtual bool ShouldDestroy();
 	virtual int GetScore() { return 100; }
 private:
-	int xSpeed = 30;
+	int xSpeed = 60;
 };
 
 class Shield
