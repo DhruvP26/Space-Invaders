@@ -143,11 +143,14 @@ void Game::Render(float dTime)
 	sMKIn.PostProcess();
 }
 
-Bullet::Bullet(DirectX::SimpleMath::Vector2 pos, int direction)
+Bullet::Bullet(DirectX::SimpleMath::Vector2 pos, int direction, bool useBossBulletTexture = false)
 	:bullet(*d3d),
 	direction(direction)
 {
-	bullet.SetTex(*p);
+	if (useBossBulletTexture)
+		bullet.SetTex(*texture2);
+	else	
+		bullet.SetTex(*texture);
 	bullet.GetAnim().Init(0, 3, 15, true);
 	bullet.GetAnim().Play(true);
 	bullet.SetScale(Vector2(0.75f, 0.75f));
@@ -160,7 +163,8 @@ Bullet::Bullet(DirectX::SimpleMath::Vector2 pos, int direction)
 void Bullet::Init(MyD3D& d3d)
 {
 	vector<RECTF> frames2(missileSpin, missileSpin + sizeof(missileSpin) / sizeof(missileSpin[0]));
-	p = d3d.GetCache().LoadTexture(&d3d.GetDevice(), "missile.dds", "missile", true, &frames2);
+	texture = d3d.GetCache().LoadTexture(&d3d.GetDevice(), "missile.dds", "missile", true, &frames2);
+	texture2 = d3d.GetCache().LoadTexture(&d3d.GetDevice(), "missile2.dds", "missile2", true, &frames2);
 	Bullet::d3d = &d3d;
 }
 
@@ -280,7 +284,7 @@ void PlayMode::UpdateBullets(float dTime)
 		uniform_int_distribution<int> range(0, mEnemies.size() - 1);
 		int chosenI = range(randEngine);
 		auto& enemySprite = mEnemies[chosenI]->GetSprite();
-		mEnemyBullets.emplace_back(Vector2(enemySprite.mPos.x + enemySprite.GetScreenSize().x / 8.f, enemySprite.mPos.y), 1);
+		mEnemyBullets.emplace_back(Vector2(enemySprite.mPos.x + enemySprite.GetScreenSize().x / 8.f, enemySprite.mPos.y), 1, mEnemies[chosenI]->FiresBossBullet());
 		mEnemyBulletTimer = 60.f / mEnemies.size();
 	}
 	for (int bulletI = mEnemyBullets.size() - 1; bulletI >= 0; --bulletI)

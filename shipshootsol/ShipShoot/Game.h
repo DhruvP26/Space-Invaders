@@ -20,11 +20,12 @@ screen before firing again.
 class Bullet
 {
 public:
-	Bullet(DirectX::SimpleMath::Vector2 pos, int direction);
+	Bullet(DirectX::SimpleMath::Vector2 pos, int direction, bool useBossBulletTexture);
 	Sprite bullet;
 
 	static void Init(MyD3D& d3d);
-	static inline ID3D11ShaderResourceView* p = nullptr;
+	static inline ID3D11ShaderResourceView* texture = nullptr;
+	static inline ID3D11ShaderResourceView* texture2 = nullptr;
 	static inline MyD3D* d3d;
 
 	void Render(DirectX::SpriteBatch& batch);
@@ -44,6 +45,7 @@ public:
 	virtual bool CheckSwitchDirection(const RECTF& playArea);
 	virtual bool ShouldDestroy() { return false; }
 	virtual int GetScore() { return 10; }
+	virtual bool FiresBossBullet() { return false; }
 	Sprite GetSprite() { return sprite; }
 protected:				  // variables can be accessed by derived clases 
 	Sprite sprite;
@@ -62,6 +64,7 @@ public:
 	virtual bool CheckSwitchDirection(const RECTF& playArea);
 	virtual bool ShouldDestroy();
 	virtual int GetScore() { return 100; }
+	virtual bool FiresBossBullet() { return true; }
 private:
 	int xSpeed = 60;
 };
