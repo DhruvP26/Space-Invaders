@@ -4,6 +4,7 @@
 #include <random>
 #include <memory>
 #include <SpriteFont.h>
+#include <fstream>
 #include <sstream>
 #include "AudioMgrFMOD.h"
 
@@ -96,6 +97,9 @@ void Game::Update(float dTime)
 		mPMode->Update(dTime);
 		if (mPMode->IsGameOver())
 		{
+			//add an entry to highscores 
+			mHighscores.push_back({ mPlayerName, mPMode->GetScore() });
+
 			state = State::GAMEOVER;
 			delete mPMode;
 			mPMode = nullptr;

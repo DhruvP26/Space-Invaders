@@ -91,6 +91,7 @@ public:
 	void UpdateEnemies(float dTime);
 	void Render(float dTime, DirectX::SpriteBatch& batch);
 	bool IsGameOver();
+	int GetScore() { return mScore; }
 
 private:
 	const float SCROLL_SPEED = 10.f;
@@ -169,6 +170,7 @@ private:
 	std::shared_ptr<AudioMgrFMOD> mAudio;
 	std::vector<bool> mKeysPressed;
 	std::string mPlayerName;
+	std::vector<std::pair<std::string, int> > mHighscores;
 };
 
 
