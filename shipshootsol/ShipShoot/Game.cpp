@@ -246,7 +246,7 @@ void Enemy::Render(SpriteBatch& batch)
 
 void Enemy::Update(float dTime)
 {
-	sprite.mPos.x += sharedXSpeed * dTime;
+	sprite.mPos.x += sharedXSpeed * sharedXDirection * dTime;
 }
 
 void Enemy::MoveDown()
@@ -256,9 +256,9 @@ void Enemy::MoveDown()
 
 bool Enemy::CheckSwitchDirection(const RECTF& playArea)
 {
-	if ((sharedXSpeed > 0 && sprite.mPos.x > playArea.right) || (sharedXSpeed < 0 && sprite.mPos.x < playArea.left))
+	if ((sharedXDirection > 0 && sprite.mPos.x > playArea.right) || (sharedXDirection < 0 && sprite.mPos.x < playArea.left))
 	{
-		sharedXSpeed = -sharedXSpeed;
+		sharedXDirection = -sharedXDirection;
 		return true;
 	}
 	return false;
@@ -271,10 +271,12 @@ PlayMode::PlayMode(MyD3D & d3d, std::shared_ptr<SpriteFont> spriteFont, IAudioMg
 	InitBgnd();
 	InitPlayer();
 	Bullet::Init(d3d);
-	InitEnemies();
-	InitShields();
 
 	mLivesTexture = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "ship.dds");
+	mEnemyTexture = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "shipYellow_manned.dds");
+	mBossTexture = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "shipBeige_manned.dds");
+
+	NewLevel();
 
 	//start music 
 	mAudio->GetSongMgr()->Play("spacejam", true, false, nullptr, 0.2F);
@@ -282,21 +284,35 @@ PlayMode::PlayMode(MyD3D & d3d, std::shared_ptr<SpriteFont> spriteFont, IAudioMg
 
 void PlayMode::InitEnemies()
 {
-	ID3D11ShaderResourceView* texture = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "shipYellow_manned.dds");
-	for (float y = 50; y < 250; y += 30)
+	for (float y = 50; y < 230; y += 40)
 	{
 		for (float x = 100; x < 500; x += 70)
 		{
-			mEnemies.push_back(new Enemy(mD3D, texture, Vector2(x,y)));
+			mEnemies.push_back(new Enemy(mD3D, mEnemyTexture, Vector2(x,y)));
 		}
 	}
 }
 
 void PlayMode::InitShields()
 {
+	mShields.clear();
 	for (float x = 100; x < 600; x += 120)
 	{
 		mShields.emplace_back(mD3D, XMFLOAT2(x, 500));
+	}
+}
+
+void PlayMode::NewLevel()
+{
+	InitEnemies();
+	InitShields();
+	if (mLevel == 1)
+	{
+		Enemy::ResetXSpeed();
+	}
+	else
+	{
+		Enemy::IncreaseXSpeed();
 	}
 }
 
@@ -431,6 +447,7 @@ void PlayMode::UpdateCollisions()
 				mPlayerBullets.erase(begin(mPlayerBullets) + bulletI);
 				delete mEnemies[enemyI];
 				mEnemies.erase(begin(mEnemies) + enemyI);
+				mAudio->GetSfxMgr()->Play("bang", false, false);
 				collided = true;
 				break;
 			}
@@ -456,6 +473,7 @@ void PlayMode::UpdateCollisions()
 					// Collision detected!
 					mPlayerBullets.erase(begin(mPlayerBullets) + bulletI);
 					mEnemyBullets.erase(begin(mEnemyBullets) + enemyBulletI);
+					mAudio->GetSfxMgr()->Play("bang", false, false);
 					collided = true;
 					break;
 				}
@@ -483,6 +501,7 @@ void PlayMode::UpdateCollisions()
 			{
 				// Collision detected!
 				mEnemyBullets.erase(begin(mEnemyBullets) + bulletI);
+				mAudio->GetSfxMgr()->Play("bang", false, false);
 				mLives--;
 				mRespawnTimer = 3;
 				break;
@@ -498,6 +517,7 @@ void PlayMode::UpdateCollisions()
 			if (mShields[shieldI].CheckCollision(mEnemyBullets[bulletI]))
 			{
 				mEnemyBullets.erase(begin(mEnemyBullets) + bulletI);
+				mAudio->GetSfxMgr()->Play("bang", false, false);
 			}
 		}
 		for (int bulletI = mPlayerBullets.size() - 1; bulletI >= 0; --bulletI)
@@ -505,6 +525,7 @@ void PlayMode::UpdateCollisions()
 			if (mShields[shieldI].CheckCollision(mPlayerBullets[bulletI]))
 			{
 				mPlayerBullets.erase(begin(mPlayerBullets) + bulletI);
+				mAudio->GetSfxMgr()->Play("bang", false, false);
 			}
 		}
 	}
@@ -524,6 +545,12 @@ void PlayMode::Update(float dTime)
 	UpdateEnemies(dTime);
 		
 	UpdateCollisions();
+
+	if (mEnemies.empty())
+	{
+		mLevel++;
+		NewLevel();
+	}
 }
 
 void PlayMode::UpdateEnemies(float dTime)
@@ -532,9 +559,8 @@ void PlayMode::UpdateEnemies(float dTime)
 	mBossTimer -= dTime;
 	if (mBossTimer <= 0)
 	{
-		ID3D11ShaderResourceView* texture = mD3D.GetCache().LoadTexture(&mD3D.GetDevice(), "shipBeige_manned.dds");
-		mEnemies.push_back(new BossEnemy(mD3D, texture, Vector2 (0,20)));
-		mBossTimer = 10;
+		mEnemies.push_back(new BossEnemy(mD3D, mBossTexture, Vector2 (0,20)));
+		mBossTimer = 20;
 	}
 
 	for (int enemyI = mEnemies.size() - 1; enemyI >= 0; --enemyI)
@@ -592,11 +618,16 @@ void PlayMode::Render(float dTime, DirectX::SpriteBatch & batch) {
 	wstringstream ss;
 	ss << "Score: " << mScore;
 	mSpriteFont->DrawString(&batch, ss.str().c_str(), XMFLOAT2(0, 50));
+
+	//display level
+	wstringstream ss2;
+	ss2 << "Level: " << mLevel;
+	mSpriteFont->DrawString(&batch, ss2.str().c_str(), XMFLOAT2(0, 80));
 }
 
 bool PlayMode::IsGameOver()
 {
-	return mLives <= 0 || mEnemies.empty();
+	return mLives <= 0;
 }
 
 void PlayMode::InitBgnd()

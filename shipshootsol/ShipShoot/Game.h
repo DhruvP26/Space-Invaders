@@ -47,10 +47,13 @@ public:
 	virtual int GetScore() { return 10; }
 	virtual bool FiresBossBullet() { return false; }
 	Sprite GetSprite() { return sprite; }
+	static void ResetXSpeed() { sharedXSpeed = 20; }
+	static void IncreaseXSpeed() { sharedXSpeed += 10; }
 protected:				  // variables can be accessed by derived clases 
 	Sprite sprite;
 private:
 	inline static int sharedXSpeed = 20;
+	inline static int sharedXDirection = 1;
 };
 
 class BossEnemy : public Enemy
@@ -120,18 +123,23 @@ private:
 	int mLives = 3;
 	float mRespawnTimer = 0;
 	int mScore = 0;
+	int mLevel = 1;
 
 	float mBossTimer = 5;
 
 	bool mFireDown = false;  // is the fire button currently being held down 
 	
 	ID3D11ShaderResourceView* mLivesTexture;
+	ID3D11ShaderResourceView* mEnemyTexture;
+	ID3D11ShaderResourceView* mBossTexture;
 
 	//setup once
 	void InitBgnd();
 	void InitPlayer();
 	void InitEnemies();
 	void InitShields();
+
+	void NewLevel();
 
 	//make it move, reset it once it leaves the screen, only one at once
 	void UpdateBullets(float dTime);
