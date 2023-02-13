@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include "AudioMgrFMOD.h"
+#include <filesystem>
 
 
 using namespace std;
@@ -56,6 +57,23 @@ Game::Game(MyD3D& d3d)
 	File::initialiseSystem();
 	mAudio = std::make_shared<AudioMgrFMOD>();
 	mAudio->Initialise();
+
+	if (filesystem::exists("highscores.txt"))
+	{
+		ifstream highscoresFile("highscores.txt");
+		while (!highscoresFile.eof())
+		{
+			string name;
+			int score;
+			highscoresFile >> name;
+			if (highscoresFile.eof())
+			{
+				break;
+			}
+			highscoresFile >> score;
+			mHighscores.push_back({ name, score });
+		}
+	}
 }
 
   
@@ -99,6 +117,20 @@ void Game::Update(float dTime)
 		{
 			//add an entry to highscores 
 			mHighscores.push_back({ mPlayerName, mPMode->GetScore() });
+			std::sort(begin(mHighscores), end(mHighscores), [](auto item1, auto item2) { return item1.second > item2.second; });
+
+			//remove last entry if there are more than 10
+			if (mHighscores.size() > 10)
+			{
+				mHighscores.erase(begin(mHighscores) + 10);
+			}
+
+			// save the highscores to file
+			ofstream highscoresFile("highscores.txt");
+			for (auto& item : mHighscores)
+			{
+				highscoresFile << item.first << "\n" << item.second << "\n";
+			}
 
 			state = State::GAMEOVER;
 			delete mPMode;
@@ -135,8 +167,17 @@ void Game::Render(float dTime)
 		break;
 	case State::GAMEOVER:
 		mGameOverBackgroundSprite.Draw(*mpSB);
-		mSpriteFont->DrawString(mpSB, "GAME OVER", XMFLOAT2(260, 300));
-		mSpriteFont->DrawString(mpSB, "PRESS SPACE TO RETURN TO TITLE SCREEN", XMFLOAT2(120, 500));
+		mSpriteFont->DrawString(mpSB, "GAME OVER", XMFLOAT2(260, 100));
+		float y = 150;
+		for (auto& item : mHighscores)
+		{
+			mSpriteFont->DrawString(mpSB, item.first.c_str(), XMFLOAT2(200, y));
+			stringstream s;
+			s << item.second;
+			mSpriteFont->DrawString(mpSB, s.str().c_str(), XMFLOAT2(500, y));
+			y += 40;
+		}
+		mSpriteFont->DrawString(mpSB, "PRESS SPACE TO RETURN TO TITLE SCREEN", XMFLOAT2(120, 600));
 		break;
 	}
 
